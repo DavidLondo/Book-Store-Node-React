@@ -3,24 +3,20 @@ import { Card } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 const Book = ({ book }) => {
-    return(
-        <Card className='my-3 p-3 rounded'>
-            <Link to={`/book/${book.id}`}>
-                <Card.Img src={book.image} variant='top'/>
-            </Link>
+  return (
+    <Card className="my-3 p-3 rounded">
+      <Link to={`/book/${book.id}`}>
+        <Card.Img src={book.image} variant="top" alt={book.name} />
+      </Link>
+      <Card.Body>
+        <Link to={`/book/${book.id}`} style={{ textDecoration: 'none' }}>
+          <Card.Title as="div"><strong>{book.name}</strong></Card.Title>
+        </Link>
+        <Card.Text as="div">{book.author}</Card.Text>
+        <Card.Text as="h3">${book.price}</Card.Text>
+      </Card.Body>
+    </Card>
+  );
+};
 
-            <Card.Body>
-                <Link to={`/book/${book.id}`}>
-                    <Card.Title as='div'>
-                        <strong>{book.name}</strong>
-                    </Card.Title>
-                </Link>
-
-                <Card.Text as='h3'>{book.price}</Card.Text>
-
-            </Card.Body>
-        </Card>
-    )
-}
-
-export default Book
+export default Book;

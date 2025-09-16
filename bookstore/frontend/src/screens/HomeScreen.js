@@ -1,36 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Row, Col } from 'react-bootstrap';
 import axios from 'axios';
-import { Col, Row } from 'react-bootstrap';
-
-import Book from '../components/Book'
+import Book from '../components/Book';
 
 const HomeScreen = () => {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    const [books, setBooks] = useState([])
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await axios.get('/api/books');
+        setBooks(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-    useEffect( () => {
-        const fetchBooks = async () => {
-            const { data } = await axios.get('/api/books/')            
-            setBooks(data)
-        }        
-        fetchBooks()
-    }, [])
+  if (loading) return <div>Cargando...</div>;
 
-    return (
-        <>
-            <h1> Catálogo de Libros </h1> 
-            <Row>
-                {books.map((book) => (
-                    <Col key={book.id} sm={12} md={6} lg={4} xl={3}>
-                        <Book book={book} />
-                    </Col>
-                ))}
-            </Row>
-        </>
-    )
+  return (
+    <>
+      <h1>Libros</h1>
+      <Row>
+        {books.map((b) => (
+          <Col key={b.id} sm={12} md={6} lg={4} xl={3}>
+            <Book book={b} />
+          </Col>
+        ))}
+      </Row>
+    </>
+  );
+};
 
-
-
-}
-
-export default HomeScreen
+export default HomeScreen;

@@ -1,72 +1,39 @@
-
-
-import { fromEnv } from "@aws-sdk/credential-providers";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
-
-import dotenv from "dotenv";
- 
-dotenv.config()
+import { ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { docClient, TABLE_NAME } from "../config/dynamo.js";
 
 const getBooks = async (req, res) => {
-  
-  if (process.env.NODE_ENV == 'production'){
-    var client = new DynamoDBClient({ 
-      region: process.env.AWS_REGION, 
+  try {
+    const command = new ScanCommand({
+      TableName: TABLE_NAME,
     });
-  }else{
-    var client = new DynamoDBClient({ 
-      region: process.env.AWS_REGION, 
-      credentials: fromEnv() 
-    });
+
+    const response = await docClient.send(command);
+    const books = response.Items || [];
+
+    res.contentType = "application/json";
+    res.json(books);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error obteniendo libros" });
   }
-
-  const docClient = DynamoDBDocumentClient.from(client);
-  const command = new ScanCommand({
-    TableName: "tb_books",
-  });
-
-  const response = await docClient.send(command);
-
-  const books = [];
-  for (var i in response.Items) {
-    books.push(response.Items[i]);
-  }
-
-  res.contentType = 'application/json';
-  console.log(books);
-  res.json(books);
-
-  return res;
-
 };
 
 const getBooksById = async (req, res) => {
+  try {
+    const command = new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { id: req.params.id },
+    });
 
-  if (process.env.NODE_ENV == 'production'){
-    var client = new DynamoDBClient({ 
-      region: process.env.AWS_REGION, 
-    });
-  }else{
-    var client = new DynamoDBClient({ 
-      region: process.env.AWS_REGION, 
-      credentials: fromEnv() 
-    });
+    const response = await docClient.send(command);
+    if (!response.Item) {
+      return res.status(404).json({ message: "Libro no encontrado" });
+    }
+    res.json(response.Item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error obteniendo el libro" });
   }
-
-  const docClient = DynamoDBDocumentClient.from(client);
-
-  const command = new GetCommand({
-    TableName: "tb_books",
-    Key: {
-      id: req.params.id,
-    },
-  });
-
-  const response = await docClient.send(command);
-  console.log(response.Item);
-  res.json(response.Item)
-  return res;
 };
 
-export { getBooksById, getBooks }
+export { getBooksById, getBooks };

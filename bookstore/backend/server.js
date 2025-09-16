@@ -1,12 +1,10 @@
 import express from 'express';
 import colors from 'colors';
-
 import dotenv from 'dotenv';
-import connectDB from './config/db.js';
 import bookRoutes from './routes/bookRoutes.js'
- 
+
+
 dotenv.config()
-connectDB()
 
 const app = express();
 
