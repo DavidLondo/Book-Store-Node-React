@@ -1,5 +1,10 @@
 import dotenv from "dotenv";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  CreateTableCommand,
+  DescribeTableCommand,
+  ResourceNotFoundException,
+} from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 dotenv.config();
@@ -15,7 +20,54 @@ const client = new DynamoDBClient(
 );
 const docClient = DynamoDBDocumentClient.from(client);
 
+async function ensureTableExists() {
+  // Solo crear la tabla en entorno local (cuando usamos endpoint)
+  if (!endpoint) return;
+
+  const describe = async () => {
+    try {
+      const res = await client.send(new DescribeTableCommand({ TableName }));
+      return res.Table?.TableStatus;
+    } catch (e) {
+      if (e instanceof ResourceNotFoundException) return "NOT_FOUND";
+      throw e;
+    }
+  };
+
+  // Esperar hasta que DynamoDB Local esté listo (reintentos)
+  for (let i = 0; i < 10; i++) {
+    try {
+      const status = await describe();
+      if (status && status !== "NOT_FOUND") return; // Ya existe
+      break;
+    } catch (e) {
+      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+
+  const status = await describe();
+  if (status === "NOT_FOUND") {
+    console.log(`Creando tabla ${TableName} en DynamoDB Local...`);
+    await client.send(
+      new CreateTableCommand({
+        TableName,
+        BillingMode: "PAY_PER_REQUEST",
+        AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
+        KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
+      })
+    );
+  }
+
+  // Esperar a que esté ACTIVE
+  for (let i = 0; i < 20; i++) {
+    const s = await describe();
+    if (s === "ACTIVE") return;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
 async function seed() {
+  await ensureTableExists();
   const items = [
     { id: "1", name: "Liderazgo", author: "Howard K.", description: "Guía práctica de liderazgo.", image: "/images/img-hk-liderazgo.jpeg", countInStock: 12, price: 19.99 },
     { id: "2", name: "Inteligencia Genial", author: "Luis D.", description: "Exploración de la inteligencia humana.", image: "/images/img-ld-inteligenciagenial.jpeg", countInStock: 5, price: 14.5 },
@@ -28,7 +80,9 @@ async function seed() {
   console.log(`Seed completado: ${items.length} items en ${TableName}`);
 }
 
-seed().catch((e) => {
-  console.error(e);
-  process.exit(0); // no bloquear arranque si falla en AWS
-});
+seed()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(0); // no bloquear arranque si falla en AWS
+  });

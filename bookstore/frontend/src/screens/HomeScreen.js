@@ -25,7 +25,11 @@ const HomeScreen = () => {
 
   return (
     <>
-      <h1>Libros</h1>
+      <section className="hero mb-4">
+        <h1 className="mb-2">Descubre tu próxima lectura</h1>
+        <p>Explora nuestra selección curada de libros con ediciones imperdibles.</p>
+      </section>
+      <h2 className="mb-3">Libros</h2>
       <Row>
         {books.map((b) => (
           <Col key={b.id} sm={12} md={6} lg={4} xl={3}>

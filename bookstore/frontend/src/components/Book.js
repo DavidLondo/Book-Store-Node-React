@@ -13,7 +13,9 @@ const Book = ({ book }) => {
           <Card.Title as="div"><strong>{book.name}</strong></Card.Title>
         </Link>
         <Card.Text as="div">{book.author}</Card.Text>
-        <Card.Text as="h3">${book.price}</Card.Text>
+        <div className="d-flex align-items-center justify-content-between mt-2">
+          <span className="price">${book.price}</span>
+        </div>
       </Card.Body>
     </Card>
   );

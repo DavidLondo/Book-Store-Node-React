@@ -2,10 +2,13 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 const region = process.env.AWS_REGION || process.env.REGION || "us-east-1";
 const endpoint = process.env.DDB_ENDPOINT; // http://localhost:8000
+
+const requestHandler = new NodeHttpHandler({ connectionTimeout: 2000, socketTimeout: 5000 });
 
 const clientConfig = endpoint
   ? {
@@ -15,8 +18,9 @@ const clientConfig = endpoint
         accessKeyId: "fake",
         secretAccessKey: "fake",
       },
+      requestHandler,
     }
-  : { region };
+  : { region, requestHandler };
 
 const client = new DynamoDBClient(clientConfig);
 export const docClient = DynamoDBDocumentClient.from(client);
