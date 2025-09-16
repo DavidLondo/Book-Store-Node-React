@@ -11,6 +11,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_dynamodb as dynamodb,
 )
+from aws_cdk import aws_elasticloadbalancingv2_targets as elbv2_targets
 from constructs import Construct
 
 
@@ -70,59 +71,51 @@ class InfraStack(Stack):
 
         # 4) IAM: We'll use an existing role provided by the lab (LabRole) later in the Launch Template.
 
-        # 5) Launch Template + AutoScalingGroup (git clone + build)
+    # 5) EC2 Instances (git clone + build)
         user_data = ec2.UserData.for_linux()
         user_data.add_commands(
-            # Update OS and install deps (Ubuntu)
+            # Log bootstrap
             "set -euxo pipefail",
+            "exec > >(tee -a /var/log/bookstore-bootstrap.log) 2>&1",
             "export DEBIAN_FRONTEND=noninteractive",
             "sudo apt-get update -y",
-            "sudo apt-get install -y git curl unzip",
-            # Install Node.js 18 from NodeSource
-            "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -",
+                "sudo apt-get install -y git curl unzip ca-certificates",
+            # Node.js 20 (más reciente y soportado)
+            "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -",
             "sudo apt-get install -y nodejs",
-            # Prepare app directory
+            # Prep
             "sudo mkdir -p /opt/bookstore",
             "sudo chown ubuntu:ubuntu /opt/bookstore",
             "cd /opt/bookstore",
-            # Clone repository (public)
+            # Código (repo público)
             "git clone --depth 1 --branch main https://github.com/DavidLondo/Book-Store-Node-React.git src",
             # Build frontend
             "cd /opt/bookstore/src/bookstore/frontend",
             "sudo -u ubuntu npm ci || sudo -u ubuntu npm install",
             "sudo -u ubuntu npm run build",
-            # Setup backend
+            # Backend env y deps
             "cd /opt/bookstore/src/bookstore/backend",
-            # Create production .env
-            f"echo 'NODE_ENV=production' | sudo tee .env",
-            f"echo 'PORT=5001' | sudo tee -a .env",
+            "echo 'NODE_ENV=production' | sudo tee .env",
+            "echo 'PORT=5001' | sudo tee -a .env",
             f"echo 'AWS_REGION={Aws.REGION}' | sudo tee -a .env",
             f"echo 'TABLE_NAME={table.table_name}' | sudo tee -a .env",
-            # Install backend deps (prod only) and seed
             "sudo -u ubuntu npm ci --omit=dev || sudo -u ubuntu npm install --omit=dev",
+            # Seed best-effort
             "node seeder.js || true",
-            # Create systemd service
-            "sudo tee /etc/systemd/system/bookstore.service > /dev/null << 'EOF'",
-            "[Unit]",
-            "Description=Bookstore Backend Node Server",
-            "After=network.target",
-            "",
-            "[Service]",
-            "Type=simple",
-            "User=ubuntu",
-            "WorkingDirectory=/opt/bookstore/src/bookstore/backend",
-            "EnvironmentFile=/opt/bookstore/src/bookstore/backend/.env",
-            "ExecStart=/usr/bin/node server.js",
-            "Restart=always",
-            "RestartSec=3",
-            "",
-            "[Install]",
-            "WantedBy=multi-user.target",
-            "EOF",
-            # Start service
+            # Servicio systemd
+            "sudo tee /etc/systemd/system/bookstore.service > /dev/null << 'EOF'\n"
+            "[Unit]\nDescription=Bookstore Backend Node Server\nAfter=network.target\n\n"
+            "[Service]\nType=simple\nUser=ubuntu\nWorkingDirectory=/opt/bookstore/src/bookstore/backend\n"
+            "EnvironmentFile=/opt/bookstore/src/bookstore/backend/.env\nExecStart=/usr/bin/node server.js\n"
+            "Restart=always\nRestartSec=3\n\n[Install]\nWantedBy=multi-user.target\nEOF",
             "sudo systemctl daemon-reload",
             "sudo systemctl enable bookstore",
             "sudo systemctl start bookstore",
+            # Espera a que responda /healthz
+            "for i in $(seq 1 60); do curl -fsS http://127.0.0.1:5001/healthz && break || sleep 5; done || true",
+            # Dump estado a logs
+            "sudo systemctl status bookstore --no-pager || true",
+            "journalctl -u bookstore -n 200 --no-pager || true",
         )
 
         # IMPORTANT: Use existing LabRole for instances; do not create/modify roles
@@ -134,27 +127,23 @@ class InfraStack(Stack):
             os=ec2.OperatingSystemType.LINUX,
         )
 
-        lt = ec2.LaunchTemplate(
-            self,
-            "BackendLaunchTemplate",
-            instance_type=ec2.InstanceType("t3.micro"),
-            machine_image=ubuntu_ami,
-            role=instance_role,
-            security_group=backend_sg,
-            user_data=user_data,
-        )
-
-        asg = autoscaling.AutoScalingGroup(
-            self,
-            "BackendAsg",
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
-            min_capacity=2,
-            max_capacity=4,
-            desired_capacity=2,
-            launch_template=lt,
-            health_check=autoscaling.HealthCheck.elb(grace=Duration.minutes(3)),
-        )
+        # Create one instance per private-egress subnet (AZ)
+        private_subnets = vpc.select_subnets(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS).subnets
+        instances = []
+        for idx, subnet in enumerate(private_subnets):
+            inst = ec2.Instance(
+                self,
+                f"BackendInstance{idx+1}",
+                vpc=vpc,
+                vpc_subnets=ec2.SubnetSelection(subnets=[subnet]),
+                instance_type=ec2.InstanceType("t3.micro"),
+                machine_image=ubuntu_ami,
+                role=instance_role,
+                security_group=backend_sg,
+                user_data=user_data,
+                key_name=None,
+            )
+            instances.append(inst)
 
         # 7) Load Balancer in public subnets
         alb = elbv2.ApplicationLoadBalancer(
@@ -170,7 +159,7 @@ class InfraStack(Stack):
             "BackendTargets",
             port=5001,
             protocol=elbv2.ApplicationProtocol.HTTP,
-            targets=[asg],
+            targets=[elbv2_targets.InstanceTarget(i) for i in instances],
             health_check=elbv2.HealthCheck(
                 path="/healthz",
                 port="5001",
