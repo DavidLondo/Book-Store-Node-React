@@ -6,8 +6,14 @@ import aws_cdk as cdk
 from infra.infra_stack import InfraStack
 
 
-app = cdk.App()
+app = cdk.App(
+    # Disable CDK version reporting to avoid AWS::CDK::Metadata in templates
+    analytics_reporting=False,
+    # Do not include construct tree metadata in the cloud assembly (keeps templates leaner)
+    tree_metadata=False,
+)
 InfraStack(app, "InfraStack",
+    synthesizer=cdk.BootstraplessSynthesizer(),
     # If you don't specify 'env', this stack will be environment-agnostic.
     # Account/Region-dependent features and context lookups will not work,
     # but a single synthesized template can be deployed anywhere.

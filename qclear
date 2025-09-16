@@ -1,0 +1,17 @@
+[33mcommit cc91974095903fd7d83c65249ecaefe7b654c002[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: DavidLondo <davidlondonopalacio@gmail.com>
+Date:   Mon Sep 15 23:13:36 2025 -0500
+
+    fix: fix all the node and npm deprecated packages
+
+[33mcommit e30cce4e04ad380b4e68545e44c8b3710ca03fc1[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Juan Montoya <jcmontoy@MacBook-Pro-de-Juan.local>
+Date:   Tue Sep 9 08:56:50 2025 -0500
+
+    second commit
+
+[33mcommit 9c4c3eacca302ca47dd22fb1a6f0288483242c41[m
+Author: Juan Montoya <jcmontoy@MacBook-Pro-de-Juan.local>
+Date:   Tue Sep 9 08:55:09 2025 -0500
+
+    first commit

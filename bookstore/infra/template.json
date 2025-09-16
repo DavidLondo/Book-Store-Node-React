@@ -1,0 +1,773 @@
+Resources:
+  BookstoreVpcB6D31B20:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/Resource
+  BookstoreVpcpublicSubnet1Subnet2B06ADF1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/publicSubnet1
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet1/Subnet
+  BookstoreVpcpublicSubnet1RouteTableAADC7D08:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/publicSubnet1
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet1/RouteTable
+  BookstoreVpcpublicSubnet1RouteTableAssociation7588970E:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: BookstoreVpcpublicSubnet1RouteTableAADC7D08
+      SubnetId:
+        Ref: BookstoreVpcpublicSubnet1Subnet2B06ADF1
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet1/RouteTableAssociation
+  BookstoreVpcpublicSubnet1DefaultRoute6C739D46:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: BookstoreVpcIGWA5BD039C
+      RouteTableId:
+        Ref: BookstoreVpcpublicSubnet1RouteTableAADC7D08
+    DependsOn:
+      - BookstoreVpcVPCGW63CA15A8
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet1/DefaultRoute
+  BookstoreVpcpublicSubnet1EIPAE617268:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/publicSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet1/EIP
+  BookstoreVpcpublicSubnet1NATGatewayA81FE2FD:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - BookstoreVpcpublicSubnet1EIPAE617268
+          - AllocationId
+      SubnetId:
+        Ref: BookstoreVpcpublicSubnet1Subnet2B06ADF1
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/publicSubnet1
+    DependsOn:
+      - BookstoreVpcpublicSubnet1DefaultRoute6C739D46
+      - BookstoreVpcpublicSubnet1RouteTableAssociation7588970E
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet1/NATGateway
+  BookstoreVpcpublicSubnet2Subnet1FBBE3E9:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/publicSubnet2
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet2/Subnet
+  BookstoreVpcpublicSubnet2RouteTable678FAD72:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/publicSubnet2
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet2/RouteTable
+  BookstoreVpcpublicSubnet2RouteTableAssociation6F59FC3D:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: BookstoreVpcpublicSubnet2RouteTable678FAD72
+      SubnetId:
+        Ref: BookstoreVpcpublicSubnet2Subnet1FBBE3E9
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet2/RouteTableAssociation
+  BookstoreVpcpublicSubnet2DefaultRouteAA292F4A:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: BookstoreVpcIGWA5BD039C
+      RouteTableId:
+        Ref: BookstoreVpcpublicSubnet2RouteTable678FAD72
+    DependsOn:
+      - BookstoreVpcVPCGW63CA15A8
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/publicSubnet2/DefaultRoute
+  BookstoreVpcprivateegressSubnet1SubnetA0ACB0C8:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: private-egress
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/private-egressSubnet1
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet1/Subnet
+  BookstoreVpcprivateegressSubnet1RouteTableA327A40B:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/private-egressSubnet1
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet1/RouteTable
+  BookstoreVpcprivateegressSubnet1RouteTableAssociation0AF86FA4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: BookstoreVpcprivateegressSubnet1RouteTableA327A40B
+      SubnetId:
+        Ref: BookstoreVpcprivateegressSubnet1SubnetA0ACB0C8
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet1/RouteTableAssociation
+  BookstoreVpcprivateegressSubnet1DefaultRouteE1F4A055:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: BookstoreVpcpublicSubnet1NATGatewayA81FE2FD
+      RouteTableId:
+        Ref: BookstoreVpcprivateegressSubnet1RouteTableA327A40B
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet1/DefaultRoute
+  BookstoreVpcprivateegressSubnet2Subnet414CF1D5:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: private-egress
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/private-egressSubnet2
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet2/Subnet
+  BookstoreVpcprivateegressSubnet2RouteTableCAFF80F0:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc/private-egressSubnet2
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet2/RouteTable
+  BookstoreVpcprivateegressSubnet2RouteTableAssociationD48C14B2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: BookstoreVpcprivateegressSubnet2RouteTableCAFF80F0
+      SubnetId:
+        Ref: BookstoreVpcprivateegressSubnet2Subnet414CF1D5
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet2/RouteTableAssociation
+  BookstoreVpcprivateegressSubnet2DefaultRoute9CB57401:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: BookstoreVpcpublicSubnet1NATGatewayA81FE2FD
+      RouteTableId:
+        Ref: BookstoreVpcprivateegressSubnet2RouteTableCAFF80F0
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/private-egressSubnet2/DefaultRoute
+  BookstoreVpcIGWA5BD039C:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/IGW
+  BookstoreVpcVPCGW63CA15A8:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: BookstoreVpcIGWA5BD039C
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/VPCGW
+  BookstoreVpcRestrictDefaultSecurityGroupCustomResourceDBB60226:
+    Type: Custom::VpcRestrictDefaultSG
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E
+          - Arn
+      DefaultSecurityGroupId:
+        Fn::GetAtt:
+          - BookstoreVpcB6D31B20
+          - DefaultSecurityGroup
+      Account:
+        Ref: AWS::AccountId
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/RestrictDefaultSecurityGroupCustomResource/Default
+  BookstoreVpcDynamoDbEndpointE4A75315:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - Ref: BookstoreVpcprivateegressSubnet1RouteTableA327A40B
+        - Ref: BookstoreVpcprivateegressSubnet2RouteTableCAFF80F0
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .dynamodb
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc
+      VpcEndpointType: Gateway
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/DynamoDbEndpoint/Resource
+  BookstoreVpcS3Endpoint320F13FF:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - Ref: BookstoreVpcprivateegressSubnet1RouteTableA327A40B
+        - Ref: BookstoreVpcprivateegressSubnet2RouteTableCAFF80F0
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .s3
+      Tags:
+        - Key: Name
+          Value: InfraStack/BookstoreVpc
+      VpcEndpointType: Gateway
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BookstoreVpc/S3Endpoint/Resource
+  CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: Inline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupEgress
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ec2:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :security-group/
+                        - Fn::GetAtt:
+                            - BookstoreVpcB6D31B20
+                            - DefaultSecurityGroup
+    Metadata:
+      aws:cdk:path: InfraStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role
+  CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0
+          - Arn
+      Runtime: nodejs22.x
+      Description: Lambda function for removing all inbound/outbound rules from the VPC default security group
+    DependsOn:
+      - CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0
+    Metadata:
+      aws:cdk:path: InfraStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler
+      aws:asset:path: asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200
+      aws:asset:property: Code
+  BooksTable9DF4AE31:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TableName: tb_books
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/BooksTable/Resource
+  AlbSGE6D0E5D1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB SG
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow HTTP from anywhere
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/AlbSG/Resource
+  BackendSG75CF71F5:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Backend SG
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BackendSG/Resource
+  BackendSGfromInfraStackAlbSG1E44EC545001F83EDADA:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow ALB to hit backend on 5001
+      FromPort: 5001
+      GroupId:
+        Fn::GetAtt:
+          - BackendSG75CF71F5
+          - GroupId
+      IpProtocol: tcp
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - AlbSGE6D0E5D1
+          - GroupId
+      ToPort: 5001
+    Metadata:
+      aws:cdk:path: InfraStack/BackendSG/from InfraStackAlbSG1E44EC54:5001
+  BackendLaunchTemplateProfile38354EA6:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - LabRole
+    Metadata:
+      aws:cdk:path: InfraStack/BackendLaunchTemplate/Profile
+  BackendLaunchTemplateA49214CA:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn:
+            Fn::GetAtt:
+              - BackendLaunchTemplateProfile38354EA6
+              - Arn
+        ImageId:
+          Ref: SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter
+        InstanceType: t3.micro
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - BackendSG75CF71F5
+              - GroupId
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: InfraStack/BackendLaunchTemplate
+          - ResourceType: volume
+            Tags:
+              - Key: Name
+                Value: InfraStack/BackendLaunchTemplate
+        UserData:
+          Fn::Base64:
+            Fn::Join:
+              - ""
+              - - |-
+                  #!/bin/bash
+                  sudo dnf update -y || sudo yum update -y
+                  sudo dnf install -y git unzip awscli || sudo yum install -y git unzip awscli
+                  sudo dnf install -y nodejs npm || sudo yum install -y nodejs npm
+                  sudo mkdir -p /opt/bookstore
+                  sudo chown ec2-user:ec2-user /opt/bookstore
+                  cd /opt/bookstore
+                  git clone --depth 1 --branch main https://github.com/DavidLondo/Book-Store-Node-React.git src
+                  cd /opt/bookstore/src/bookstore/frontend
+                  (npm ci || npm install)
+                  npm run build
+                  cd /opt/bookstore/src/bookstore/backend
+                  echo 'NODE_ENV=production' | sudo tee .env
+                  echo 'PORT=5001' | sudo tee -a .env
+                  echo 'AWS_REGION=
+                - Ref: AWS::Region
+                - |-
+                  ' | sudo tee -a .env
+                  echo 'TABLE_NAME=
+                - Ref: BooksTable9DF4AE31
+                - |-
+                  ' | sudo tee -a .env
+                  npm ci --omit=dev || npm install --omit=dev
+                  node seeder.js || true
+                  sudo tee /etc/systemd/system/bookstore.service > /dev/null << 'EOF'
+                  [Unit]
+                  Description=Bookstore Backend Node Server
+                  After=network.target
+
+                  [Service]
+                  Type=simple
+                  User=ec2-user
+                  WorkingDirectory=/opt/bookstore/src/bookstore/backend
+                  EnvironmentFile=/opt/bookstore/src/bookstore/backend/.env
+                  ExecStart=/usr/bin/node server.js
+                  Restart=always
+                  RestartSec=3
+
+                  [Install]
+                  WantedBy=multi-user.target
+                  EOF
+                  sudo systemctl daemon-reload
+                  sudo systemctl enable bookstore
+                  sudo systemctl start bookstore
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags:
+            - Key: Name
+              Value: InfraStack/BackendLaunchTemplate
+    Metadata:
+      aws:cdk:path: InfraStack/BackendLaunchTemplate/Resource
+  BackendAsgASG36DB4B64:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 180
+      HealthCheckType: ELB
+      LaunchTemplate:
+        LaunchTemplateId:
+          Ref: BackendLaunchTemplateA49214CA
+        Version:
+          Fn::GetAtt:
+            - BackendLaunchTemplateA49214CA
+            - LatestVersionNumber
+      MaxSize: "4"
+      MinSize: "2"
+      TargetGroupARNs:
+        - Ref: BackendAlbHttpListenerBackendTargetsGroup1445D956
+      VPCZoneIdentifier:
+        - Ref: BookstoreVpcprivateegressSubnet1SubnetA0ACB0C8
+        - Ref: BookstoreVpcprivateegressSubnet2Subnet414CF1D5
+    UpdatePolicy:
+      AutoScalingScheduledAction:
+        IgnoreUnmodifiedGroupSizeProperties: true
+    Metadata:
+      aws:cdk:path: InfraStack/BackendAsg/ASG
+  BackendAlb0D5FE5C5:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - AlbSGE6D0E5D1
+            - GroupId
+      Subnets:
+        - Ref: BookstoreVpcpublicSubnet1Subnet2B06ADF1
+        - Ref: BookstoreVpcpublicSubnet2Subnet1FBBE3E9
+      Type: application
+    DependsOn:
+      - BookstoreVpcpublicSubnet1DefaultRoute6C739D46
+      - BookstoreVpcpublicSubnet1RouteTableAssociation7588970E
+      - BookstoreVpcpublicSubnet2DefaultRouteAA292F4A
+      - BookstoreVpcpublicSubnet2RouteTableAssociation6F59FC3D
+    Metadata:
+      aws:cdk:path: InfraStack/BackendAlb/Resource
+  BackendAlbHttpListener58B160AA:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: BackendAlbHttpListenerBackendTargetsGroup1445D956
+          Type: forward
+      LoadBalancerArn:
+        Ref: BackendAlb0D5FE5C5
+      Port: 80
+      Protocol: HTTP
+    Metadata:
+      aws:cdk:path: InfraStack/BackendAlb/HttpListener/Resource
+  BackendAlbHttpListenerBackendTargetsGroup1445D956:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckPort: "5001"
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200"
+      Port: 5001
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: "false"
+      TargetType: instance
+      UnhealthyThresholdCount: 3
+      VpcId:
+        Ref: BookstoreVpcB6D31B20
+    Metadata:
+      aws:cdk:path: InfraStack/BackendAlb/HttpListener/BackendTargetsGroup/Resource
+  FrontendDistributionE6EAF405:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: InfraStackFrontendDistributionOrigin1DD9B345C
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::GetAtt:
+                - BackendAlb0D5FE5C5
+                - DNSName
+            Id: InfraStackFrontendDistributionOrigin1DD9B345C
+    Metadata:
+      aws:cdk:path: InfraStack/FrontendDistribution/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/81WTY/bNhD9LdGxoNVmU/SwN69jpEaTrGq7AZpgsRiRtMUsRar80MYx9N87pERbdrK5ZA8+2ZzhDB9n3jzqKr96+Xv+2wt4tBPKHiZSlPl+5YA+EDTd7zm9yvcfGvppn9XwZfrVZtfZLxnJFLg34Pgj7JLF+lJxN9NqI7begBNaZdcYpqDmJ1vWuyYYCl9KQdFKBTPvwD7ETR35QYQRLZ75Tchdd0dmG/WhmJE+6SpG4dnQgpBQCinc7qNWKWvb0AUb/odUN1LTh2FdQ9MnWTS36i14Ravs2hnPSSaa9o/Z2XawVmzVAj1Txgy39lbNDB9uP9znIlBEIIy9P/QNm4Oeu4sBeBkoeir1BAr/lto7voZS8qP9aJtaq6mICQ6bw5/5ogg/x2KTgbvPzswNSHsBNf85GJeD5EJg9CxcKMcN0iVxqNe4YTV1KNJVzZUjgwVVeq5Yo4UKBEPESUO5aQXFm4yUtUvSaqNGf1dmu6gNz5In6XPCR1aceoMlfmO0b07QgpT6cSrlrXel9oqleWbcUiOa02YxtlDbUMKllzwioIBlk0Lx3tLHUq0UpyE0PVZeif88H1oaGRjNSQ+fOW8kQ8o8HycO3mFTSHlW8Z+qxSj1k/ca7Rkw9vI37s43hiEF6am+5nUjsc1YI6GsA0X50P9+NmiFRVvUsE0mo+XhdR+nTRVEmr0GB8PTHk4/PagjbIf80ww/VKII48kNGCdCOf7iuxN+ksz1YFaBqjjW2MLtO80iP6f/3hfz5f1y/vc/89U6QOO1bkEWGocZ8+DagVAhSTjn/YH0EVU8uyMC6jzOan/3wuiNwMcCvNOWQjgu309xseoXifDYQmE4m0EDFCswgK04SFfNKj4Sly9ne2qhzixImFUawqdmkIxoJU/qeWRQVJS1njYN3j/q0RrMFvWnb0//uRDvfn6hjnAJ1gkqNbASJFYCXS1+Oo6SvUXfTfRx8ynRMvZ35CDjAGEdV8fN5CRocJLvw+07dFh2BKF5tjFauXz/GmONKH2Iib3YgJfuhlfQCm1CESlWgicenCwPs521gj9ygw13muoxaRh2lrqJ05PKucYiZm3EVqRZTecttXa35WfcOvSFG6PNktsG9YT3ghoS4Ne480lgzOD+8ylHgZNWgKsS/Z08NPj5kg00GNex6whC195QPmqut07XY3uMS4YzP5ayFYybG8CnEz+tuENQWLdtiCnA4PzhgxgWKIiNdx0pdq7S6tdX+cur/NWLz1aIifHKiZrny/73f38IBOvgDAAA
+    Metadata:
+      aws:cdk:path: InfraStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Outputs:
+  CloudFrontURL:
+    Description: Frontend URL
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - FrontendDistributionE6EAF405
+              - DomainName
+  AlbDNS:
+    Description: ALB DNS for API
+    Value:
+      Fn::GetAtt:
+        - BackendAlb0D5FE5C5
+        - DNSName
+  DynamoTable:
+    Value:
+      Ref: BooksTable9DF4AE31
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-3
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-4
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+      - Fn::Equals:
+          - Ref: AWS::Region
+          - us-west-2
+

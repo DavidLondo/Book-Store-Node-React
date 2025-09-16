@@ -5,17 +5,11 @@ from aws_cdk import (
     RemovalPolicy,
     Stack,
     CfnOutput,
-    DockerImage,
     aws_ec2 as ec2,
     aws_elasticloadbalancingv2 as elbv2,
     aws_autoscaling as autoscaling,
     aws_iam as iam,
     aws_dynamodb as dynamodb,
-    aws_s3 as s3,
-    aws_cloudfront as cloudfront,
-    aws_cloudfront_origins as origins,
-    aws_s3_deployment as s3deploy,
-    aws_s3_assets as s3assets,
 )
 from constructs import Construct
 
@@ -74,45 +68,28 @@ class InfraStack(Stack):
         backend_sg = ec2.SecurityGroup(self, "BackendSG", vpc=vpc, description="Backend SG", allow_all_outbound=True)
         backend_sg.add_ingress_rule(alb_sg, ec2.Port.tcp(5001), "Allow ALB to hit backend on 5001")
 
-        # 4) IAM Role for EC2 instances
-        instance_role = iam.Role(
-            self,
-            "BackendInstanceRole",
-            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
-            description="EC2 role for backend instances to read DynamoDB and S3 assets",
-        )
-        # SSM access for troubleshooting (Session Manager)
-        instance_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore")
-        )
-        # Allow read access to the DynamoDB table
-        table.grant_read_data(instance_role)
+        # 4) IAM: We'll use an existing role provided by the lab (LabRole) later in the Launch Template.
 
-        # 5) Backend code as S3 Asset (zip of backend/ directory)
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        backend_dir = os.path.join(repo_root, "backend")
-        frontend_dir = os.path.join(repo_root, "frontend")
-
-        backend_asset = s3assets.Asset(self, "BackendAsset", path=backend_dir)
-
-        # 6) Launch Template + AutoScalingGroup
+        # 5) Launch Template + AutoScalingGroup (git clone + build)
         user_data = ec2.UserData.for_linux()
         user_data.add_commands(
             # Update OS and install deps
             "sudo dnf update -y || sudo yum update -y",
             "sudo dnf install -y git unzip awscli || sudo yum install -y git unzip awscli",
-            # Install Node.js (Amazon Linux 2023 typically provides nodejs)
-            "sudo dnf install -y nodejs || sudo yum install -y nodejs",
+            # Install Node.js + npm (Amazon Linux 2023)
+            "sudo dnf install -y nodejs npm || sudo yum install -y nodejs npm",
             # Prepare app directory
             "sudo mkdir -p /opt/bookstore",
             "sudo chown ec2-user:ec2-user /opt/bookstore",
             "cd /opt/bookstore",
-            # Download backend asset from S3
-            f"aws s3 cp {backend_asset.s3_object_url} /opt/bookstore/backend.zip",
-            "unzip -o backend.zip -d /opt/bookstore/backend_src",
-            # Some CDK assets zip the folder; detect nested folder (backend) and move
-            "if [ -d /opt/bookstore/backend_src/backend ]; then mv /opt/bookstore/backend_src/backend /opt/bookstore/backend; else mv /opt/bookstore/backend_src /opt/bookstore/backend; fi",
-            "cd /opt/bookstore/backend",
+            # Clone repository (public)
+            "git clone --depth 1 --branch main https://github.com/DavidLondo/Book-Store-Node-React.git src",
+            # Build frontend
+            "cd /opt/bookstore/src/bookstore/frontend",
+            "(npm ci || npm install)",
+            "npm run build",
+            # Setup backend
+            "cd /opt/bookstore/src/bookstore/backend",
             # Create production .env
             f"echo 'NODE_ENV=production' | sudo tee .env",
             f"echo 'PORT=5001' | sudo tee -a .env",
@@ -120,8 +97,10 @@ class InfraStack(Stack):
             f"echo 'TABLE_NAME={table.table_name}' | sudo tee -a .env",
             # Install and build (backend has no build step; install deps)
             "npm ci --omit=dev || npm install --omit=dev",
+            # Seed initial data (best-effort)
+            "node seeder.js || true",
             # Create systemd service
-            "sudo bash -c 'cat > /etc/systemd/system/bookstore.service <<\EOF'",
+            "sudo tee /etc/systemd/system/bookstore.service > /dev/null << 'EOF'",
             "[Unit]",
             "Description=Bookstore Backend Node Server",
             "After=network.target",
@@ -129,8 +108,8 @@ class InfraStack(Stack):
             "[Service]",
             "Type=simple",
             "User=ec2-user",
-            "WorkingDirectory=/opt/bookstore/backend",
-            "EnvironmentFile=/opt/bookstore/backend/.env",
+            "WorkingDirectory=/opt/bookstore/src/bookstore/backend",
+            "EnvironmentFile=/opt/bookstore/src/bookstore/backend/.env",
             "ExecStart=/usr/bin/node server.js",
             "Restart=always",
             "RestartSec=3",
@@ -143,6 +122,9 @@ class InfraStack(Stack):
             "sudo systemctl enable bookstore",
             "sudo systemctl start bookstore",
         )
+
+        # IMPORTANT: Use existing LabRole for instances; do not create/modify roles
+        instance_role = iam.Role.from_role_name(self, "ExistingLabRole", role_name="LabRole")
 
         lt = ec2.LaunchTemplate(
             self,
@@ -166,9 +148,6 @@ class InfraStack(Stack):
             health_check=autoscaling.HealthCheck.elb(grace=Duration.minutes(3)),
         )
 
-    # Allow instances (instance role) to read the backend asset
-    backend_asset.grant_read(instance_role)
-
         # 7) Load Balancer in public subnets
         alb = elbv2.ApplicationLoadBalancer(
             self,
@@ -182,6 +161,7 @@ class InfraStack(Stack):
         target_group = listener.add_targets(
             "BackendTargets",
             port=5001,
+            protocol=elbv2.ApplicationProtocol.HTTP,
             targets=[asg],
             health_check=elbv2.HealthCheck(
                 path="/",
@@ -194,76 +174,8 @@ class InfraStack(Stack):
             ),
         )
 
-        # 8) Frontend S3 bucket + CloudFront (SPA)
-        site_bucket = s3.Bucket(
-            self,
-            "FrontendBucket",
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            versioned=False,
-            removal_policy=RemovalPolicy.DESTROY,
-            auto_delete_objects=True,
-        )
-
-        # CloudFront distribution with default S3 origin
-        oai = cloudfront.OriginAccessIdentity(self, "OAI")
-        site_bucket.grant_read(oai)
-
-        cf_distribution = cloudfront.Distribution(
-            self,
-            "FrontendDistribution",
-            default_root_object="index.html",
-            default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3Origin(site_bucket, origin_access_identity=oai),
-                viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-                cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
-            ),
-            additional_behaviors={
-                "api/*": cloudfront.BehaviorOptions(
-                    origin=origins.LoadBalancerV2Origin(
-                        alb,
-                        protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-                        http_port=80,
-                    ),
-                    viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-                    cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
-                    origin_request_policy=cloudfront.OriginRequestPolicy.ALL_VIEWER,
-                    allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
-                )
-            },
-            error_responses=[
-                cloudfront.ErrorResponse(http_status=403, response_http_status=200, response_page_path="/index.html", ttl=Duration.minutes(5)),
-                cloudfront.ErrorResponse(http_status=404, response_http_status=200, response_page_path="/index.html", ttl=Duration.minutes(5)),
-            ],
-        )
-
-        # 9) Deploy frontend (bundle React) into S3 using Docker node image
-        s3deploy.BucketDeployment(
-            self,
-            "DeployFrontend",
-            destination_bucket=site_bucket,
-            distribution=cf_distribution,
-            distribution_paths=["/*"],
-            sources=[
-                s3deploy.Source.asset(
-                    path=frontend_dir,
-                    bundling=s3deploy.BundlingOptions(
-                        image=DockerImage.from_registry("node:20-alpine"),
-                        command=[
-                            "/bin/sh",
-                            "-c",
-                            # Install and build, copy build output to /asset-output
-                            "(npm ci || npm install) && npm run build && cp -r build/* /asset-output/",
-                        ],
-                        # Increase timeout/build resources if needed
-                        network=None,
-                    ),
-                )
-            ],
-        )
-
-        # 10) Outputs
-        CfnOutput(self, "CloudFrontURL", value=f"https://{cf_distribution.domain_name}", description="Frontend URL")
+        # 8) Outputs (ALB-only setup)
+        CfnOutput(self, "WebsiteURL", value=f"http://{alb.load_balancer_dns_name}", description="Frontend+API via ALB")
         CfnOutput(self, "AlbDNS", value=alb.load_balancer_dns_name, description="ALB DNS for API")
         CfnOutput(self, "DynamoTable", value=table.table_name)
 

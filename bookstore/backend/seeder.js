@@ -4,15 +4,17 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 dotenv.config();
 
-const region = process.env.AWS_REGION || "us-east-1";
-const endpoint = process.env.DDB_ENDPOINT || "http://localhost:8000";
+const region = process.env.AWS_REGION || process.env.REGION || "us-east-1";
+const endpoint = process.env.DDB_ENDPOINT; // Only set for local dev
 const TableName = process.env.TABLE_NAME || "tb_books";
 
-const client = new DynamoDBClient({
-  region,
-  endpoint,
-  credentials: { accessKeyId: "fake", secretAccessKey: "fake" },
-});
+// Use local endpoint with dummy creds only when explicitly provided; otherwise
+// rely on instance role/default provider chain for AWS.
+const clientConfig = endpoint
+  ? { region, endpoint, credentials: { accessKeyId: "fake", secretAccessKey: "fake" } }
+  : { region };
+
+const client = new DynamoDBClient(clientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
 async function ensureTable() {
@@ -85,8 +87,10 @@ async function seed() {
   console.log(`Seed completado: ${items.length} items en ${TableName}`);
 }
 
-ensureTable()
-  .then(seed)
+// In AWS (no endpoint), we assume the table is provisioned by infra and skip creation.
+const run = endpoint ? ensureTable().then(seed) : seed();
+
+run
   .catch((e) => {
     console.error(e);
     process.exit(1);
