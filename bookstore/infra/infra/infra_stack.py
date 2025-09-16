@@ -73,21 +73,24 @@ class InfraStack(Stack):
         # 5) Launch Template + AutoScalingGroup (git clone + build)
         user_data = ec2.UserData.for_linux()
         user_data.add_commands(
-            # Update OS and install deps
-            "sudo dnf update -y || sudo yum update -y",
-            "sudo dnf install -y git unzip awscli || sudo yum install -y git unzip awscli",
-            # Install Node.js + npm (Amazon Linux 2023)
-            "sudo dnf install -y nodejs npm || sudo yum install -y nodejs npm",
+            # Update OS and install deps (Ubuntu)
+            "set -euxo pipefail",
+            "export DEBIAN_FRONTEND=noninteractive",
+            "sudo apt-get update -y",
+            "sudo apt-get install -y git curl unzip",
+            # Install Node.js 18 from NodeSource
+            "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -",
+            "sudo apt-get install -y nodejs",
             # Prepare app directory
             "sudo mkdir -p /opt/bookstore",
-            "sudo chown ec2-user:ec2-user /opt/bookstore",
+            "sudo chown ubuntu:ubuntu /opt/bookstore",
             "cd /opt/bookstore",
             # Clone repository (public)
             "git clone --depth 1 --branch main https://github.com/DavidLondo/Book-Store-Node-React.git src",
             # Build frontend
             "cd /opt/bookstore/src/bookstore/frontend",
-            "(npm ci || npm install)",
-            "npm run build",
+            "sudo -u ubuntu npm ci || sudo -u ubuntu npm install",
+            "sudo -u ubuntu npm run build",
             # Setup backend
             "cd /opt/bookstore/src/bookstore/backend",
             # Create production .env
@@ -95,9 +98,8 @@ class InfraStack(Stack):
             f"echo 'PORT=5001' | sudo tee -a .env",
             f"echo 'AWS_REGION={Aws.REGION}' | sudo tee -a .env",
             f"echo 'TABLE_NAME={table.table_name}' | sudo tee -a .env",
-            # Install and build (backend has no build step; install deps)
-            "npm ci --omit=dev || npm install --omit=dev",
-            # Seed initial data (best-effort)
+            # Install backend deps (prod only) and seed
+            "sudo -u ubuntu npm ci --omit=dev || sudo -u ubuntu npm install --omit=dev",
             "node seeder.js || true",
             # Create systemd service
             "sudo tee /etc/systemd/system/bookstore.service > /dev/null << 'EOF'",
@@ -107,7 +109,7 @@ class InfraStack(Stack):
             "",
             "[Service]",
             "Type=simple",
-            "User=ec2-user",
+            "User=ubuntu",
             "WorkingDirectory=/opt/bookstore/src/bookstore/backend",
             "EnvironmentFile=/opt/bookstore/src/bookstore/backend/.env",
             "ExecStart=/usr/bin/node server.js",
@@ -126,11 +128,17 @@ class InfraStack(Stack):
         # IMPORTANT: Use existing LabRole for instances; do not create/modify roles
         instance_role = iam.Role.from_role_name(self, "ExistingLabRole", role_name="LabRole")
 
+        # Switch to Ubuntu 22.04 LTS via SSM Parameter
+        ubuntu_ami = ec2.MachineImage.from_ssm_parameter(
+            "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id",
+            os=ec2.OperatingSystemType.LINUX,
+        )
+
         lt = ec2.LaunchTemplate(
             self,
             "BackendLaunchTemplate",
             instance_type=ec2.InstanceType("t3.micro"),
-            machine_image=ec2.MachineImage.latest_amazon_linux2023(),
+            machine_image=ubuntu_ami,
             role=instance_role,
             security_group=backend_sg,
             user_data=user_data,
@@ -164,7 +172,7 @@ class InfraStack(Stack):
             protocol=elbv2.ApplicationProtocol.HTTP,
             targets=[asg],
             health_check=elbv2.HealthCheck(
-                path="/",
+                path="/healthz",
                 port="5001",
                 healthy_http_codes="200",
                 interval=Duration.seconds(30),
