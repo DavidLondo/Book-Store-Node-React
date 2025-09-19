@@ -4,6 +4,7 @@ import os
 import aws_cdk as cdk
 
 from infra.infra_stack import InfraStack
+from infra.infra_s3 import InfraS3Stack
 
 
 app = cdk.App(
@@ -12,7 +13,7 @@ app = cdk.App(
     # Do not include construct tree metadata in the cloud assembly (keeps templates leaner)
     tree_metadata=False,
 )
-InfraStack(app, "InfraStack",
+InfraS3Stack(app, "InfraS3Stack",
     synthesizer=cdk.BootstraplessSynthesizer(),
     # If you don't specify 'env', this stack will be environment-agnostic.
     # Account/Region-dependent features and context lookups will not work,
