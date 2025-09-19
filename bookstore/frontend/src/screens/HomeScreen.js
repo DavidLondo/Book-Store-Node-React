@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col } from 'react-bootstrap';
-import axios from 'axios';
+import api from '../api';
 import Book from '../components/Book';
 
 const HomeScreen = () => {
@@ -10,7 +10,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await axios.get('/api/books');
+  const { data } = await api.get('/books');
         setBooks(data);
       } catch (e) {
         console.error(e);

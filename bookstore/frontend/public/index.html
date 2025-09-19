@@ -25,6 +25,11 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>My Web App</title>
+    <script>
+      // Placeholder: Will be overridden by /env-config.js at container start if provided
+      window.__ENV__ = window.__ENV__ || {};
+    </script>
+    <script src="/env-config.js" defer></script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

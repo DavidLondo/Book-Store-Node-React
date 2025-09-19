@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Row, Col, Image, ListGroup, Card, Button } from 'react-bootstrap';
-import axios from 'axios';
+import api from '../api';
 
 const BookScreen = () => {
   const { id } = useParams();
@@ -10,7 +10,7 @@ const BookScreen = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await axios.get(`/api/books/${id}`);
+        const { data } = await api.get(`/api/books/${id}`);
         setBook(data);
       } catch (e) {
         console.error(e);
